@@ -27,7 +27,7 @@ def formatPrice(price):
 def saveValues(Cashier):
     newFile = open('Cashier.jsonl', 'w')
     for dictionary in Cashier:
-        value = round(Cashier[dictionary])
+        value = round(Cashier[dictionary], 2)
         string = '{"date": "' + str(dictionary) + '", "value":' + str(value) + '},\n'
         newFile.write(string)
 
@@ -74,6 +74,38 @@ def checkCashier(cashier):
 
         date = date + datetime.timedelta(days=1)
 
+def paymentCredit(type, n_payments, price, timestamp, cashier):
+    timestamp = dateCredit(timestamp)
+    credit = installment(price,n_payments)
+    vPortion = credit[0]
+    over = credit[1]
+    i = 0
+    while(i<n_payments):
+        value = vPortion
+        if over!=0:
+            value = round((value + 0.01), 2)
+            over -= 1
+        
+        if type=='purchases':
+            value = round(value * -1, 2)
+
+        addCashier(timestamp, value, cashier)
+        
+        if timestamp.month==12:
+            timestamp=datetime.date((timestamp.year)+1, 1, 10)
+        else:
+            timestamp=datetime.date(timestamp.year, (timestamp.month)+1, 10)
+        i += 1
+
+
+#init csv itens
+csvDictionary = {}
+csvFile = csv.reader(open('catalog.csv', 'r'))
+for item in csvFile:
+    if item[0] != 'id':
+        price = formatPrice(item[1])
+        csvDictionary[item[0]] =  price
+
 
 cashier = {}
 
@@ -86,37 +118,11 @@ with open('purchases.jsonl') as f:
         timestamp = formatDate(j_content.get("timestamp"))
 
         if payment_method=='credit':
-            timestamp = dateCredit(timestamp)
-            credit = installment(price,n_payments)
-            vPortion = credit[0]
-            over = credit[1]
-            i = 0
-            while(i<n_payments):
-                value = vPortion
-                if over!=0:
-                    value = round((value + 0.01), 2)
-                    over -= 1
-                
-                value = round(value * -1, 2)
-                addCashier(timestamp, value, cashier)
-                
-                if timestamp.month==12:
-                    timestamp=datetime.date((timestamp.year)+1, 1, 10)
-                else:
-                    timestamp=datetime.date(timestamp.year, (timestamp.month)+1, 10)
-                i += 1
+            paymentCredit('purchases', n_payments, price, timestamp, cashier)
 
         else:
             value = round((price * -1),2)
             addCashier(timestamp,value,cashier)
-
-
-csvDictionary = {}
-csvFile = csv.reader(open('catalog.csv', 'r'))
-for item in csvFile:
-    if item[0] != 'id':
-        price = formatPrice(item[1])
-        csvDictionary[item[0]] =  price
 
 with open('sales.jsonl') as f:
     for line in f:
@@ -128,22 +134,7 @@ with open('sales.jsonl') as f:
         timestamp = formatDate(j_content.get("timestamp"))
 
         if payment_method=='credit':
-            timestamp = dateCredit(timestamp)
-            credit = installment(price,n_payments)
-            vPortion = credit[0]
-            over = credit[1]
-            i = 0
-            while(i<n_payments):
-                value = vPortion
-                if over!=0:
-                    value = round((value+0.01) ,2)
-                    over -= 1
-                addCashier(timestamp, value, cashier)
-                if timestamp.month==12:
-                    timestamp=datetime.date((timestamp.year)+1, 1, 10)
-                else:
-                    timestamp=datetime.date(timestamp.year, (timestamp.month)+1, 10)
-                i += 1
+            paymentCredit('sales', n_payments, price, timestamp, cashier)
 
         else:
             value = price
